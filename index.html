@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Birthday Surprise – Page 1</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <!-- Ambient layers -->
+  <div class="bg" aria-hidden="true">
+    <div class="bg__gradient"></div>
+    <div class="bg__glow"></div>
+    <div class="bg__noise"></div>
+  </div>
+
+  <main class="stage" role="main">
+    <section class="hero" aria-label="Birthday surprise intro">
+      <p class="kicker">the world got luckier since</p>
+
+      <div class="card" aria-label="Live time since date">
+        <div class="metric">
+          <span class="metric__label">TOTAL HOURS</span>
+          <span class="metric__value" id="hours">0</span>
+        </div>
+        <div class="divider" aria-hidden="true"></div>
+        <div class="metric">
+          <span class="metric__label">TOTAL SECONDS</span>
+          <span class="metric__value" id="seconds">0</span>
+        </div>
+      </div>
+
+      <p class="subline">She turns <strong>28</strong> this year <span class="sparkle" aria-hidden="true">✨</span></p>
+
+      <div class="countdown" aria-live="polite" aria-label="Countdown">
+        <span class="countdown__label">countdown</span>
+        <span class="countdown__value" id="countdown">28</span>
+        <span class="countdown__unit">s</span>
+      </div>
+    </section>
+
+    <section class="sky" aria-label="Star field">
+      <div id="starfield" class="starfield" aria-hidden="true"></div>
+      <!-- Used for path sampling; visually hidden -->
+      <svg class="sampler" id="sampler" width="0" height="0" viewBox="0 0 1000 250" aria-hidden="true" focusable="false">
+        <defs></defs>
+        <text id="nameText" x="500" y="165" text-anchor="middle">TAMMANNA</text>
+      </svg>
+    </section>
+
+    <footer class="hint" aria-hidden="true">
+      <span class="hint__dot"></span>
+      <span class="hint__text">wait for the stars…</span>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
