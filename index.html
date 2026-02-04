@@ -3,95 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
     <title>Premium Page</title>
-    <style>
-        body {
-            /* Background Layers */
-            background: linear-gradient(to bottom, #000000, #434343);
-            position: relative;
-            overflow: hidden;
-        }
-        .centered {
-            text-align: center;
-            margin-top: 100px;
-            position: relative;
-            z-index: 5;
-        }
-        .card {
-            /* Live hours/seconds card */
-            background: rgba(255, 255, 255, 0.8);
-            padding: 20px;
-            border-radius: 10px;
-            display: inline-block;
-            z-index: 5;
-        }
-        .modal {
-            /* Accessible Modal */
-            display: none;
-            position: fixed;
-            z-index: 10;
-            background-color: rgba(0,0,0,0.5);
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-        }
-        .modal-content {
-            background: white;
-            margin: auto;
-            padding: 20px;
-            width: 50%;
-            border-radius: 10px;
-            position: relative;
-            z-index: 11;
-        }
-        .hidden {
-            display: none;
-        }
-        .starfield {
-            /* Starfield container */
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            background: url('starfield.png') no-repeat;
-            background-size: cover;
-        }
-    </style>
 </head>
 <body>
-    <div class="starfield"></div>
-    <div class="centered">
-        <h1>The world got luckier since</h1>
-        <div class="card">Live Hours: <span id="hours">0</span>:<span id="seconds">0</span></div>
-        <p>Subline goes here</p>
-        <div id="countdown">Countdown here</div>
+    <div class="container">
+        <h1 class="centered-text">The world got luckier since</h1>
+        <div id="countdown" class="countdown"></div>
+        <div id="star-container"></div>
         <button id="surpriseBtn" class="hidden">Tap for surprise for my queen</button>
-        <div id="modal" class="modal">
-            <div class="modal-content">
-                <p>Dear Queen,
-                    Happy Birthday! Your special day is filled with love and surprises.
-                </p>
-            </div>
+    </div>
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <span id="closeModal" class="close">&times;</span>
+            <p>Happy Birthday, Nishu!</p>
         </div>
     </div>
-    <script>
-        // JavaScript code to handle the countdown, button visibility after morph completes
-        // Show hidden button after the morph effect
-        document.addEventListener('DOMContentLoaded', function() {
-            // Logic to update hours, seconds and handle countdown
-            // Example:
-            setInterval(function() {
-                // Update time logic goes here
-            }, 1000);
-            // Function to show button after some completion logic
-            function showSurpriseBtn() {
-                document.getElementById('surpriseBtn').classList.remove('hidden');
-            }
-            // Call showSurpriseBtn at the end of morph or animation
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
