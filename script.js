@@ -1,267 +1,219 @@
-/* =========================
-   Cinematic Birthday Surprise
-   - Only vanilla JS
-   - Smooth count-up feel (no flicker)
-   - Accurate time using Date.now()
-   - Respects prefers-reduced-motion
-   ========================= */
-
 (() => {
-  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+  const prefersReducedMotion =
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
 
-  // --- Dates / accuracy ---
-  // Birth start: Feb 06, 1997 00:00:00 (local time as requested; change to UTC if needed)
+  // Feb 06, 1997 00:00:00 (local time)
   const BIRTH_START = new Date(1997, 1, 6, 0, 0, 0, 0).getTime();
-
-  // --- DOM ---
-  const app = document.getElementById("app");
-  const fadeOverlay = document.getElementById("fadeOverlay");
-
-  const sceneOpening = document.getElementById("sceneOpening");
-  const sceneCountdown = document.getElementById("sceneCountdown");
-  const sceneReveal = document.getElementById("sceneReveal");
-  const sceneVideo = document.getElementById("sceneVideo");
 
   const hoursValueEl = document.getElementById("hoursValue");
   const secondsValueEl = document.getElementById("secondsValue");
 
+  const ritualLabel = document.getElementById("ritualLabel");
+  const ritualHint = document.getElementById("ritualHint");
   const countdownValueEl = document.getElementById("countdownValue");
+  const whisperEl = document.getElementById("whisper");
+  const fadeOverlay = document.getElementById("fadeOverlay");
 
-  const letterEl = document.getElementById("letter");
-  const ctaWrap = document.getElementById("ctaWrap");
-  const surpriseBtn = document.getElementById("surpriseBtn");
-
-  const videoEl = document.getElementById("surpriseVideo");
-  const videoHint = document.getElementById("videoHint");
-
-  // --- Helpers ---
+  // Helpers
   const clamp01 = (n) => Math.max(0, Math.min(1, n));
+  function formatInt(n){ return Math.floor(n).toLocaleString(undefined); }
+  function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
 
-  function formatInt(n) {
-    // Keep it classy; simple grouping
-    return Math.floor(n).toLocaleString(undefined);
-  }
-
-  function setScene(sceneName) {
-    app.dataset.scene = sceneName;
-
-    // Hide all, then show chosen
-    sceneOpening.hidden = sceneName !== "opening";
-    sceneCountdown.hidden = sceneName !== "countdown";
-    sceneReveal.hidden = sceneName !== "reveal";
-    sceneVideo.hidden = sceneName !== "video";
-  }
-
-  async function fadeToBlack(durationMs = 900) {
-    if (prefersReducedMotion) {
-      fadeOverlay.classList.add("is-on");
-      return;
-    }
-    fadeOverlay.style.transitionDuration = `${durationMs}ms`;
+  async function fadeGlowOn(ms = 900){
+    if (prefersReducedMotion){ fadeOverlay.classList.add("is-on"); return; }
+    fadeOverlay.style.transitionDuration = `${ms}ms`;
     fadeOverlay.classList.add("is-on");
-    await wait(durationMs);
+    await wait(ms);
   }
-
-  async function fadeFromBlack(durationMs = 900) {
-    if (prefersReducedMotion) {
-      fadeOverlay.classList.remove("is-on");
-      return;
-    }
-    fadeOverlay.style.transitionDuration = `${durationMs}ms`;
+  async function fadeGlowOff(ms = 900){
+    if (prefersReducedMotion){ fadeOverlay.classList.remove("is-on"); return; }
+    fadeOverlay.style.transitionDuration = `${ms}ms`;
     fadeOverlay.classList.remove("is-on");
-    await wait(durationMs);
+    await wait(ms);
   }
 
-  function wait(ms) {
-    return new Promise((r) => setTimeout(r, ms));
-  }
-
-  // Smooth number animation without flicker:
-  // We compute the target each tick and ease the displayed value toward it.
-  const state = {
+  // Smooth counters (always visible)
+  const counterState = {
     displayHours: 0,
     displaySeconds: 0,
-    lastTick: performance.now()
+    lastT: performance.now()
   };
 
-  function updateLifeCounters(nowPerf) {
-    const dt = Math.min(0.05, (nowPerf - state.lastTick) / 1000); // cap dt
-    state.lastTick = nowPerf;
+  function updateCounters(nowPerf){
+    const dt = Math.min(0.05, (nowPerf - counterState.lastT) / 1000);
+    counterState.lastT = nowPerf;
 
-    const now = Date.now();
-    const livedMs = Math.max(0, now - BIRTH_START);
+    const livedMs = Math.max(0, Date.now() - BIRTH_START);
     const targetSeconds = livedMs / 1000;
     const targetHours = livedMs / (1000 * 60 * 60);
 
-    // Easing factor: faster convergence but stable (no jumpy flicker)
-    const ease = prefersReducedMotion ? 1 : (1 - Math.pow(0.001, dt)); // frame-rate independent
+    const ease = prefersReducedMotion ? 1 : (1 - Math.pow(0.001, dt));
+    counterState.displaySeconds += (targetSeconds - counterState.displaySeconds) * ease;
+    counterState.displayHours += (targetHours - counterState.displayHours) * ease;
 
-    state.displaySeconds += (targetSeconds - state.displaySeconds) * ease;
-    state.displayHours += (targetHours - state.displayHours) * ease;
-
-    // Update DOM
-    secondsValueEl.textContent = formatInt(state.displaySeconds);
-    hoursValueEl.textContent = formatInt(state.displayHours);
+    secondsValueEl.textContent = formatInt(counterState.displaySeconds);
+    hoursValueEl.textContent = formatInt(counterState.displayHours);
   }
 
-  // Background transformation driver (countdown)
-  function setBackgroundShift(progress01) {
-    const p = clamp01(progress01);
-    document.documentElement.style.setProperty("--bgShift", String(p));
-    document.documentElement.style.setProperty("--glowBoost", String(p));
+  // Universe breathing (subtle)
+  let breathPhase = 0;
+  function updateBreath(dt){
+    if (prefersReducedMotion){
+      document.documentElement.style.setProperty("--bgBreath", "0");
+      return;
+    }
+    breathPhase += dt * 0.35;
+    const b = (Math.sin(breathPhase) + 1) / 2;
+    document.documentElement.style.setProperty("--bgBreath", String(b));
   }
 
-  // --- Flow ---
-  async function start() {
-    setScene("opening");
-    await fadeFromBlack(700);
+  /* Celebrating stars canvas */
+  const canvas = document.getElementById("stars");
+  const ctx = canvas.getContext("2d", { alpha: true });
 
-    // Let opening breathe briefly while counters animate
-    await wait(prefersReducedMotion ? 300 : 1200);
+  let stars = [];
+  let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
-    await runCountdown(28);
+  function resizeCanvas(){
+    dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+  }
+  const rand = (min, max) => min + Math.random() * (max - min);
 
-    await transitionToReveal();
-
-    await revealLetter();
-
-    enableSurprise();
+  function makeStar(){
+    const w = canvas.width, h = canvas.height;
+    const palette = [
+      "rgba(167,139,250,0.70)",
+      "rgba(56,189,248,0.65)",
+      "rgba(255,122,182,0.60)",
+      "rgba(255,179,138,0.55)",
+      "rgba(255,211,138,0.55)"
+    ];
+    return {
+      x: rand(0, w),
+      y: rand(0, h),
+      r: rand(0.9, 2.4) * dpr,
+      vy: rand(6, 18) * dpr,
+      tw: rand(0.6, 1.2),
+      phase: rand(0, Math.PI * 2),
+      alpha: rand(0.15, 0.45),
+      hue: palette[(Math.random() * palette.length) | 0]
+    };
   }
 
-  async function runCountdown(secondsTotal) {
-    setScene("countdown");
+  function initStars(count){
+    stars = [];
+    for (let i = 0; i < count; i++) stars.push(makeStar());
+  }
 
-    const startTime = performance.now();
-    const endTime = startTime + secondsTotal * 1000;
+  function drawStar(s, t){
+    const tw = prefersReducedMotion ? 0 : (0.15 * Math.sin(s.phase + t * s.tw));
+    const a = clamp01(s.alpha + tw);
 
-    // Initialize visuals
-    countdownValueEl.textContent = String(secondsTotal);
-    setBackgroundShift(0);
+    // tiny sparkle diamond
+    ctx.beginPath();
+    ctx.fillStyle = s.hue.replace(/0\.\d+\)/, `${a})`);
+    const r = s.r;
+    ctx.moveTo(s.x, s.y - r);
+    ctx.lineTo(s.x + r * 0.55, s.y);
+    ctx.lineTo(s.x, s.y + r);
+    ctx.lineTo(s.x - r * 0.55, s.y);
+    ctx.closePath();
+    ctx.fill();
 
-    while (performance.now() < endTime) {
+    // soft halo
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(255,255,255,${a * 0.12})`;
+    ctx.arc(s.x, s.y, r * 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function updateStars(dt, t){
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    for (let i = 0; i < stars.length; i++){
+      const s = stars[i];
+
+      if (!prefersReducedMotion){
+        s.y -= s.vy * dt;
+        s.x += Math.sin((s.phase + t * 0.25)) * 0.15 * dpr;
+      }
+
+      if (s.y < -30 * dpr){
+        stars[i] = makeStar();
+        stars[i].y = h + rand(0, 40 * dpr);
+      }
+
+      drawStar(s, t);
+    }
+  }
+
+  /* Countdown ritual: starts after 5s */
+  async function startCountdownRitual(){
+    ritualHint.textContent = "A gentle 28‑second ritual begins soon.";
+    await wait(5000);
+
+    ritualLabel.textContent = "The universe is counting down to your moment…";
+    ritualHint.textContent = "Breathe. Watch the light gather.";
+
+    const secondsTotal = 28;
+    const start = performance.now();
+    const end = start + secondsTotal * 1000;
+
+    while (performance.now() < end){
       const now = performance.now();
-      const remainingMs = Math.max(0, endTime - now);
+      const remainingMs = Math.max(0, end - now);
       const remaining = Math.ceil(remainingMs / 1000);
-
       countdownValueEl.textContent = String(remaining);
 
-      const progress = 1 - (remainingMs / (secondsTotal * 1000));
-      setBackgroundShift(progress);
+      // romantic “near the end” hush: slightly stronger breath
+      if (!prefersReducedMotion && remaining <= 6){
+        const pulse = (Math.sin((end - now) / 120) + 1) / 2;
+        document.documentElement.style.setProperty("--bgBreath", String(0.3 + pulse * 0.7));
+      }
 
-      // cinematic cadence
-      await wait(prefersReducedMotion ? 250 : 80);
+      await wait(prefersReducedMotion ? 250 : 70);
     }
 
     countdownValueEl.textContent = "0";
-    setBackgroundShift(1);
+    ritualLabel.textContent = "And then…";
+    ritualHint.textContent = "Time smiled.";
 
-    // Gentle fade-out
-    await fadeToBlack(prefersReducedMotion ? 200 : 900);
-    await wait(120);
-    await fadeFromBlack(prefersReducedMotion ? 200 : 900);
+    await fadeGlowOn(prefersReducedMotion ? 200 : 700);
+    whisperEl.hidden = false;
+    await wait(prefersReducedMotion ? 200 : 450);
+    await fadeGlowOff(prefersReducedMotion ? 200 : 900);
   }
 
-  async function transitionToReveal() {
-    setScene("reveal");
-    // A subtle camera-like motion is handled by CSS animations on the title/panel.
-    // Add a tiny staged delay for cinematic entrance.
-    await wait(prefersReducedMotion ? 0 : 350);
+  // Main loop
+  let last = performance.now();
+  function loop(t){
+    const dt = Math.min(0.05, (t - last) / 1000);
+    last = t;
+
+    updateCounters(t);
+    updateBreath(dt);
+    updateStars(dt, t / 1000);
+
+    requestAnimationFrame(loop);
   }
 
-  async function revealLetter() {
-    // Lines injected for clean sequential animation (fade-slide).
-    const lines = [
-      "My Dearest Nishu",
-      "On this special day, I want you to know how much you mean to me.",
-      "Every moment with you is a treasure, and every day with you is a gift.",
-      "You light up my world with your smile,",
-      "warm my heart with your laughter,",
-      "and make every day brighter just by being you.",
-      "Happy Birthday to the most amazing person in my life!",
-      "",
-      "With all my love,",
-      "Forever Yours"
-    ];
-
-    letterEl.innerHTML = "";
-    const lineEls = lines.map((t, idx) => {
-      const p = document.createElement("p");
-      p.className = "letterLine" + (idx >= lines.length - 2 ? " signature" : "");
-      p.textContent = t;
-      letterEl.appendChild(p);
-      return p;
-    });
-
-    // Reveal line-by-line
-    const baseDelay = prefersReducedMotion ? 40 : 520;
-    for (let i = 0; i < lineEls.length; i++) {
-      // Keep empty lines as spacing without animation pause
-      if (lines[i] === "") {
-        lineEls[i].classList.add("is-visible");
-        await wait(prefersReducedMotion ? 10 : 120);
-        continue;
-      }
-
-      lineEls[i].classList.add("is-visible");
-      await wait(baseDelay);
-    }
-
-    // Small pause before CTA
-    await wait(prefersReducedMotion ? 80 : 500);
-    ctaWrap.hidden = false;
+  function onResize(){
+    resizeCanvas();
+    const area = window.innerWidth * window.innerHeight;
+    const target = prefersReducedMotion ? 0 : Math.max(60, Math.min(140, Math.round(area / 14000)));
+    initStars(target);
   }
 
-  function enableSurprise() {
-    surpriseBtn.addEventListener("click", async () => {
-      // Transition to black, then video scene
-      await fadeToBlack(prefersReducedMotion ? 200 : 900);
-      setScene("video");
+  window.addEventListener("resize", onResize, { passive:true });
 
-      // Attempt autoplay (may require user gesture — we have it)
-      // Hide controls initially for a cinematic feel, then show controls after start.
-      videoEl.controls = false;
-
-      // Some browsers need the video to be muted to autoplay; we won't force it.
-      // If playback fails, show a minimal "Tap to start".
-      try {
-        await videoEl.play();
-        videoEl.classList.add("is-visible");
-        await fadeFromBlack(prefersReducedMotion ? 200 : 900);
-
-        // After it begins, allow user control
-        await wait(600);
-        videoEl.controls = true;
-      } catch (e) {
-        // Fallback: show hint button
-        videoHint.hidden = false;
-        await fadeFromBlack(prefersReducedMotion ? 200 : 900);
-
-        videoHint.addEventListener("click", async () => {
-          videoHint.hidden = true;
-          try {
-            await videoEl.play();
-            videoEl.classList.add("is-visible");
-            await wait(400);
-            videoEl.controls = true;
-          } catch (_) {
-            // If still blocked, show controls so the user can start manually
-            videoEl.controls = true;
-          }
-        }, { once: true });
-      }
-    }, { once: true });
-  }
-
-  // --- RAF loop for counters (only relevant in opening scene; safe globally) ---
-  function rafLoop(t) {
-    // Always update counters; opening scene uses them, but harmless elsewhere.
-    updateLifeCounters(t);
-
-    // If user is in countdown, background shift is managed in runCountdown loop.
-    requestAnimationFrame(rafLoop);
-  }
-
-  // Start
-  requestAnimationFrame(rafLoop);
-  start().catch(console.error);
+  // Boot
+  resizeCanvas();
+  initStars(prefersReducedMotion ? 0 : 95);
+  requestAnimationFrame(loop);
+  startCountdownRitual().catch(console.error);
 })();
