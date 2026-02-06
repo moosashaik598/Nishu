@@ -1,3 +1,4 @@
+[CONTENT OMITTED FOR BREVITY]
 (() => {
   const prefersReducedMotion =
     window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
